@@ -1,109 +1,113 @@
-# CorePost Mobile Panic Button Documentation (HTTPS-only)
+# CorePost Mobile Android
 
-*Data leaks don't ask permission.*
+Android panic-клиент для CorePost. Приложение использует Material 3 UI, хранит `baseUrl`, `emergencyId` и `panicSecret` в `EncryptedSharedPreferences` и подписывает mobile-запросы HMAC-строкой `METHOD\nPATH\nTIMESTAMP`.
 
----
+## Что есть в проекте
 
-## 🇷🇺 Описание проекта
+- Compose single-activity приложение.
+- Статусы `registered`, `normal`, `pending_lock`, `locked`, `restricted`, `recovered`.
+- Двухшаговый panic-lock.
+- Редактируемая и очищаемая конфигурация сервера.
+- Release build с fallback на debug keystore, если production-keystore еще не передан.
 
-**CorePost Mobile Panic Button** – это мобильное приложение-компаньон для системы CorePost, предназначенное для мгновенной блокировки корпоративного устройства в случае подозрения на кражу или несанкционированный доступ. Приложение обеспечивает:
-- Подключение к серверу CorePost через безопасное HTTPS-соединение.
-- Получение статуса устройства посредством эндпоинта `/mobile/check`.
-- Отправку запросов на блокировку (`/mobile/lock`) и разблокировку (`/mobile/unlock`) с использованием HMAC-аутентификации.
-- Отображение текущего состояния устройства с помощью интуитивно понятного интерфейса: круглая кнопка и информативный статус (например, "Компьютер в порядке" или "Компьютер помечен как украденный").
+## Конфигурация
 
-Приложение разработано с учётом требований безопасности Zero Trust и использует шифрование и проверку сертификатов для HTTPS.
+Адрес сервера не зашит в приложение. Пользователь вводит его вручную на onboarding-экране и может позже:
 
----
+- изменить адрес;
+- заменить `emergencyId` и `panicSecret`;
+- полностью удалить все сохраненные параметры.
 
-## 🇬🇧 Overview
+Если сервер работает по `http://`, приложение допускает cleartext traffic. Если сервер доступен по `https://`, используйте полный HTTPS URL.
 
-**CorePost Mobile Panic Button** is a companion mobile application for the CorePost security system, designed to instantly lock a corporate device if theft or unauthorized access is suspected. The app provides:
-- Secure connection to the CorePost server over HTTPS.
-- Status checking via the `/mobile/check` endpoint.
-- Sending lock (`/mobile/lock`) and unlock (`/mobile/unlock`) requests using HMAC authentication.
-- A user-friendly interface with a circular button and status messages (e.g., "Device OK" or "Device marked as stolen").
+## Локальный demo flow
 
-The application is built under a Zero Trust security model and leverages HTTPS with certificate validation to ensure secure communications.
+```bash
+emulator -avd my_avd
+adb wait-for-device
+./scripts/install_demo_on_emulator.sh
+```
 
----
+Если сервер запущен на хосте и в приложении используется его локальный адрес, отдельно выполните:
 
-## Технические детали / Technical Details
+```bash
+adb reverse tcp:<PORT> tcp:<PORT>
+```
 
-### Архитектура / Architecture
+Если нужен provisioning тестового устройства через admin API:
 
-Приложение взаимодействует с сервером CorePost по следующим ключевым эндпоинтам:
-- **/mobile/check** – проверка текущего состояния устройства.
-- **/mobile/lock** – запрос на блокировку устройства (установка статуса "украдено").
-- **/mobile/unlock** – запрос на разблокировку устройства (сброс статуса тревоги).
+```bash
+export COREPOST_ADMIN_TOKEN='<token>'
+python3 scripts/provision_demo_device.py --base-url http://host-or-lan-server:PORT
+```
 
-На всех запросах используется HMAC-аутентификация. Для каждого запроса вычисляется подпись на основе emergencyId и текущей Unix-временной метки. При использовании HTTPS все соединения шифруются, что обеспечивает защиту от атак «человек посередине» (MITM).
+После этого введите в приложении:
 
----
+- `Base URL`
+- `Emergency ID`
+- `Panic secret`
 
-## Соображения безопасности / Security Considerations
+## Сборка
 
-- **HMAC-аутентификация:**  
-  Все запросы подписываются с использованием HMAC-SHA256, вычисляемой над временной меткой с использованием emergencyId в качестве ключа. Это предотвращает атаки повторного воспроизведения.
+```bash
+./gradlew assembleDebug
+./scripts/build_release_apk.sh
+```
 
-- **HTTPS-соединение:**  
-  Обязательное использование HTTPS гарантирует, что все данные шифруются при передаче, защищая от MITM-атак и перехвата трафика.
+Если хостовая Java слишком новая для текущего Android Gradle/Kotlin toolchain, задайте совместимую JDK 17 или 21 через `JAVA_HOME` перед сборкой.
 
-- **Валидация сертификатов:**  
-  Клиент (мобильное приложение) должно проверять подлинность SSL-сертификата сервера. Это исключает возможность использования поддельных сертификатов.
+Release APK появляется в `app/build/outputs/apk/release/`.
 
-- **Безопасное хранение настроек:**  
-  Параметры подключения (IP, порт, emergencyId) хранятся в SharedPreferences и используются для генерации HMAC-подписей. Обязательно следите за тем, чтобы эти данные не были доступны злоумышленникам.
+Для production-подписи задайте:
 
----
+```bash
+export COREPOST_UPLOAD_STORE_FILE='<keystore-file>'
+export COREPOST_UPLOAD_STORE_PASSWORD='...'
+export COREPOST_UPLOAD_KEY_ALIAS='...'
+export COREPOST_UPLOAD_KEY_PASSWORD='...'
+```
 
-## Запуск и настройка приложения / Running and Setup
+## Публикация
 
-### Предварительные требования / Prerequisites
-- Android Studio с последней версией Android SDK.
-- Сервер CorePost должен быть настроен и доступен по HTTPS.
-- Доступ к интернету с мобильного устройства.
+Пример публикации release APK:
 
-### Установка и сборка / Installation and Build
-1. **Импорт проекта:**
-    - Откройте Android Studio и выберите «Open an existing project».
-    - Укажите корневую папку проекта CorePost Mobile Panic Button.
+```bash
+gh release create android-v1.0.0 \
+  app/build/outputs/apk/release/app-release.apk \
+  --repo CorePost/corepost-mobile-android \
+  --title "CorePost Android v1.0.0" \
+  --notes-file CHANGELOG.md
+```
 
-2. **Сборка и запуск:**
-    - Выполните сборку проекта (Build → Clean Project, затем Build → Rebuild Project).
-    - Запустите приложение на устройстве или эмуляторе.
+## Тесты
 
----
+```bash
+./gradlew test
+./gradlew connectedDebugAndroidTest
+```
 
-## Инструкция по использованию приложения / How to Use the Application
+## Demo assets
 
-1. **Первый запуск:**
-    - Пользователь вводит настройки подключения (IP/домен, порт, emergencyId).
-    - Приложение выполняет проверку `/mobile/check` по HTTPS. Если ответ успешный, параметры кэшируются.
+- Скриншоты: [docs/media/screenshots/README.md](docs/media/screenshots/README.md)
+- Видео: [docs/media/video/README.md](docs/media/video/README.md)
 
-2. **Основной интерфейс:**
-    - Экран содержит одну большую круглую кнопку и надпись состояния:
-        - Если `emergencyState = false`: надпись «Компьютер в порядке», кнопка выглядит в нормальном состоянии.
-        - Если `emergencyState = true`: надпись «Компьютер помечен как украденный», кнопка выглядит нажатой.
+Текущие скриншоты сняты на `emulator -avd my_avd` и показывают onboarding, ошибку подключения и live-состояния panic-flow:
 
-3. **Действия пользователя:**
-    - Нажатие кнопки в состоянии "не заблокировано" отправляет запрос на `/mobile/lock`.
-        - Если сервер возвращает 200 – состояние переключается.
-        - Если 201 – запускается таймер подтверждения (отображается обратный отсчёт с надписью «Подтвердите блокировку – нажмите на кнопку снова»).
-    - Нажатие кнопки в состоянии "заблокировано" отправляет запрос на `/mobile/unlock`.
-        - При успешном ответе (200) состояние меняется, при ошибке (403) выводится уведомление.
+![Onboarding Hero](docs/media/screenshots/01-onboarding-current.png)
+![Onboarding Form](docs/media/screenshots/02-onboarding-form.png)
+![Onboarding Filled](docs/media/screenshots/03-onboarding-filled.png)
+![Dashboard Without Server](docs/media/screenshots/04-dashboard-error.png)
+![Registered](docs/media/screenshots/06-registered.png)
+![Pending Lock](docs/media/screenshots/07-pending-lock.png)
+![Locked](docs/media/screenshots/08-locked.png)
+![Recovered](docs/media/screenshots/09-recovered.png)
 
-4. **Логирование и отладка:**
-    - Все запросы выполняются по HTTPS, а ошибки и ответы логируются в Logcat для диагностики.
+Доступный video asset:
 
----
+- [demo-my_avd.mp4](docs/media/video/demo-my_avd.mp4) — живая запись сценария `recovered -> pending_lock -> locked -> recovered` на `my_avd`.
 
-## Заключение / Conclusion
+Для перезаписи видео:
 
-Приложение CorePost Mobile Panic Button с поддержкой HTTPS обеспечивает надёжную защиту корпоративных устройств, позволяя сотрудникам быстро реагировать на инциденты безопасности. Использование HMAC-аутентификации и HTTPS гарантирует, что данные передаются безопасно и недоступны для злоумышленников. Модульный дизайн и интуитивно понятный интерфейс делают приложение удобным для пользователей, а его интеграция с сервером CorePost позволяет централизованно управлять безопасностью устройств.
-
-*For further questions or contributions, please refer to the project repository.*
-
----
-
-*Data leaks don't ask permission.*
+```bash
+./scripts/record_demo_video.sh
+```
