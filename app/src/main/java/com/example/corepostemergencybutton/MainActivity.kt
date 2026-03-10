@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
     private fun getBaseUrl(): String {
         val ip = prefs.getString("ip", "") ?: ""
         val port = prefs.getString("port", "8000") ?: "8000"
-        return "http://$ip:$port"
+        return "https://$ip:$port"
     }
 
     private fun generateHeaders(emergencyId: String): Map<String, String> {
