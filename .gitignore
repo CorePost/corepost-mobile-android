@@ -1,0 +1,56 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+# Android Studio
+.idea/
+.gradle/
+*.iml
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# NDK
+obj/
+
+# Kotlin/Java build
+*.class
+*.jar
+*.war
+*.ear
+
+# Log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Android crash reports
+*.stacktrace
+
+# Signing keys - если будешь добавлять release-сборку
+*.jks
+*.keystore
+
+# Gradle cache
+**/build/
+!gradle-wrapper.jar
+
+# Misc
+*.apk
+*.ap_
+
